@@ -38,8 +38,8 @@ class PoidhAutonomousAgent:
         """Creates an on-chain bounty. Fully autonomous execution."""
         print("[INFO] Constructing new real-world bounty transaction...")
         
-        task_name = "Underground Aesthetic: Physical Media"
-        task_desc = "Take a clear photo of a physical cassette tape or CD leaning against street graffiti. Must look raw. AI will evaluate the presence of both the physical media and the graffiti."
+        task_name = "The Hydration Check"
+        task_desc = "Take a photo of a bottle of mineral water next to a piece of paper with the handwritten word 'POIDH-BOT-001'. The photo must show both the bottle and the clear handwritten text."
         bounty_amount = self.w3.to_wei(0.001, 'ether')
         
         tx = self.poidh_contract.functions.createSoloBounty(
@@ -71,8 +71,15 @@ class PoidhAutonomousAgent:
         
         prompt = """
         You are an autonomous judge for a bounty. 
-        Task: Verify if this image clearly shows a physical cassette tape or CD placed in front of street graffiti.
-        Respond ONLY in JSON format: {"is_valid": true/false, "reason": "Short explanation of what you see."}
+        Task: Verify if this image clearly shows:
+        1. A physical bottle of mineral water (e.g., Aqua, Vit) or a local drink bottle/box.
+        2. A piece of paper with the CLEAR HANDWRITTEN text 'POIDH-BOT-001' placed next to it.
+        
+        Strict Rules: 
+        - The text must be handwritten, not digitally added.
+        - Both the bottle and the text must be in the same real-world photo.
+        
+        Respond ONLY in JSON format: {"is_valid": true/false, "reason": "Detailed explanation of the bottle and handwriting detected."}
         """
         
         response = self.ai_client.chat.completions.create(

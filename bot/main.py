@@ -61,10 +61,35 @@ class PoidhAutonomousAgent:
         time.sleep(10)
 
     def check_submissions(self):
-        print(f"[INFO] Polling submissions for bounty ID: {self.active_bounty_id}")
-        return [
-            {"claim_id": 101, "submitter": "0xABC...", "image_url": "https://example.com/submission1.jpg"}
-        ]
+        print(f"[INFO] Polling on-chain events for bounty ID: {self.active_bounty_id}")
+        real_submissions = []
+        
+        try:
+            claim_events = self.poidh_contract.events.ClaimCreated().get_logs(
+                fromBlock=0, 
+                argument_filters={'bountyId': self.active_bounty_id}
+            )
+            
+            for event in claim_events:
+                claim_id = event.args.id
+                submitter = event.args.issuer
+                image_url = event.args.imageUri
+                
+                claim_data = self.poidh_contract.functions.claims(claim_id).call()
+                is_accepted = claim_data[7]
+                
+                if not is_accepted:
+                    real_submissions.append({
+                        "claim_id": claim_id,
+                        "submitter": submitter,
+                        "image_url": image_url
+                    })
+                    print(f"[INFO] Found new unverified claim ID: {claim_id} from {submitter}")
+                    
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch on-chain claims: {e}")
+            
+        return real_submissions
 
     def evaluate_with_ai_vision(self, image_url):
         print("[INFO] Triggering vision model for claim evaluation...")

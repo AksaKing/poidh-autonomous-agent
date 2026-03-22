@@ -31,7 +31,7 @@ class PoidhAutonomousAgent:
         )
         self.model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
         
-        self.active_bounty_id = 111
+        self.active_bounty_id = 1097
 
     def create_real_world_bounty(self):
         """Creates an on-chain bounty. Fully autonomous execution."""
@@ -83,7 +83,7 @@ class PoidhAutonomousAgent:
         
         try:
             claim_events = self.poidh_contract.events.ClaimCreated().get_logs(
-                from_block=12000000, 
+                from_block=43683329, 
                 argument_filters={'bountyId': self.active_bounty_id}
             )
             

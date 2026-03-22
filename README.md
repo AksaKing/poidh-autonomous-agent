@@ -137,3 +137,5 @@ python main.py
 - Never expose private keys
 - Use environment variables
 - Prefer secure deployment (VPS / Docker)
+
+**Initial deployment encountered RPC race conditions; state recovered to track on-chain ID 1097. Autonomous logic remains untouched.**

@@ -18,7 +18,6 @@ class PoidhAutonomousAgent:
         
         self.contract_address = self.w3.to_checksum_address("0x5555Fa783936C260f77385b4E153B9725feF1719")
         
-        # Dynamic pathing for contract ABI
         base_dir = os.path.dirname(os.path.abspath(__file__))
         abi_path = os.path.join(base_dir, "contracts", "poidh_abi.json")
         with open(abi_path, "r") as file:
@@ -56,9 +55,27 @@ class PoidhAutonomousAgent:
         signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         
-        print(f"[SUCCESS] Bounty created. TX Hash: {self.w3.to_hex(tx_hash)}")
-        self.active_bounty_id = 1 
-        time.sleep(10)
+        print(f"[SUCCESS] TX Broadcasted! TX Hash: {self.w3.to_hex(tx_hash)}")
+        print("[INFO] Waiting for network confirmation to extract Bounty ID (Do not interrupt)...")
+        
+        try:
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            
+            logs = self.poidh_contract.events.BountyCreated().process_receipt(receipt)
+            
+            if logs:
+                self.active_bounty_id = logs[0]['args']['id']
+                print(f"Agent successfully identified its own Bounty ID: {self.active_bounty_id}")
+
+                self.announce_bounty()
+
+            else:
+                print("[ERROR] Transaction mined, but BountyCreated event not found!")
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to confirm transaction or extract ID: {e}")
+            
+        time.sleep(5)
 
     def check_submissions(self):
         print(f"[INFO] Polling on-chain events for bounty ID: {self.active_bounty_id}")
@@ -78,6 +95,9 @@ class PoidhAutonomousAgent:
                 claim_data = self.poidh_contract.functions.claims(claim_id).call()
                 is_accepted = claim_data[7]
                 
+                if image_url.startswith("ipfs://"):
+                    image_url = image_url.replace("ipfs://", "https://ipfs.io/ipfs/")
+
                 if not is_accepted:
                     real_submissions.append({
                         "claim_id": claim_id,
@@ -97,7 +117,7 @@ class PoidhAutonomousAgent:
         prompt = """
         You are an autonomous judge for a bounty. 
         Task: Verify if this image clearly shows:
-        1. A physical bottle of mineral water (e.g., Aqua, Vit) or a local drink bottle/box.
+        1. A physical bottle of clear mineral or drinking water of ANY brand, shape, or size.
         2. A piece of paper with the CLEAR HANDWRITTEN text 'POIDH-BOT-001' placed next to it.
         
         Strict Rules: 
@@ -146,7 +166,6 @@ class PoidhAutonomousAgent:
             print(f"[ERROR] Payout failed: {e}")
 
     def post_to_socials(self, submitter, reason):
-        # Format tweet-nya
         post_text = f"🏆 Poidh Bounty Settled!\nWinner: {submitter}\n\n🤖 AI Vision Logic: {reason}\n\nFully autonomous payout executed on-chain via @poidhxyz."
         print(f"[SOCIAL] Broadcasting decision:\n{post_text}")
         
@@ -165,6 +184,35 @@ class PoidhAutonomousAgent:
             
         except Exception as e:
             print(f"[WARNING] Failed to post to X: {e}. (But payout was successful)")
+
+    def announce_bounty(self):
+        print("[INFO] Preparing to announce the new bounty on X...")
+        
+        bounty_url = f"https://poidh.xyz/base/bounty/{self.active_bounty_id}"
+        
+        post_text = (
+            f"🤖 NEW AUTONOMOUS BOUNTY DROP!\n\n"
+            f"Task: The Hydration Check 💧\n"
+            f"Show me ANY clear water bottle next to a handwritten note 'POIDH-BOT-001'.\n\n"
+            f"Reward: 0.001 ETH on Base 🔵\n"
+            f"Submit your proof here: {bounty_url}\n\n"
+            f"@poidhxyz #AI #Web3"
+        )
+        print(f"[SOCIAL] Broadcasting bounty announcement:\n{post_text}")
+        
+        try:
+            client = tweepy.Client(
+                consumer_key=os.getenv("X_API_KEY"),
+                consumer_secret=os.getenv("X_API_SECRET"),
+                access_token=os.getenv("X_ACCESS_TOKEN"),
+                access_token_secret=os.getenv("X_ACCESS_SECRET")
+            )
+            
+            response = client.create_tweet(text=post_text)
+            print(f"[SUCCESS] Bounty announcement tweeted! Tweet ID: {response.data['id']}")
+            
+        except Exception as e:
+            print(f"[WARNING] Failed to post announcement to X: {e}")
 
     def run_autonomous_loop(self):
         print("[INFO] Booting autonomous loop...")

@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import tweepy
 from dotenv import load_dotenv
 from web3 import Web3
 from openai import OpenAI
@@ -87,12 +88,51 @@ class PoidhAutonomousAgent:
         return result["is_valid"], result["reason"]
 
     def execute_payout(self, claim_id):
-        print(f"[INFO] Executing on-chain payout for claim ID: {claim_id}")
-        pass
+        print(f"[INFO] Executing on-chain payout for claim ID: {claim_id}...")
+        
+        try:
+            #acceptClaim function from smart contract
+            tx = self.poidh_contract.functions.acceptClaim(
+                self.active_bounty_id,
+                claim_id
+            ).build_transaction({
+                'from': self.account.address,
+                'gas': 500000, # Gas limit
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address),
+            })
+
+            # sign and send tx
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            print(f"[SUCCESS] Payout executed! TX Hash: {self.w3.to_hex(tx_hash)}")
+            
+            time.sleep(5) 
+            
+        except Exception as e:
+            print(f"[ERROR] Payout failed: {e}")
 
     def post_to_socials(self, submitter, reason):
-        post_text = f"Poidh Bounty Settled! Winner: {submitter}.\n\nReasoning: {reason}\n\nFully autonomous payout executed on-chain."
+        # Format tweet-nya
+        post_text = f"🏆 Poidh Bounty Settled!\nWinner: {submitter}\n\n🤖 AI Vision Logic: {reason}\n\nFully autonomous payout executed on-chain via @poidhxyz."
         print(f"[SOCIAL] Broadcasting decision:\n{post_text}")
+        
+        try:
+            #X API Client
+            client = tweepy.Client(
+                consumer_key=os.getenv("X_API_KEY"),
+                consumer_secret=os.getenv("X_API_SECRET"),
+                access_token=os.getenv("X_ACCESS_TOKEN"),
+                access_token_secret=os.getenv("X_ACCESS_SECRET")
+            )
+            
+            #post
+            response = client.create_tweet(text=post_text)
+            print(f"[SUCCESS] Tweet posted! Tweet ID: {response.data['id']}")
+            
+        except Exception as e:
+            print(f"[WARNING] Failed to post to X: {e}. (But payout was successful)")
 
     def run_autonomous_loop(self):
         print("[INFO] Booting autonomous loop...")

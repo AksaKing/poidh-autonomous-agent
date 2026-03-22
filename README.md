@@ -1,6 +1,7 @@
 Poidh Autonomous Agent (Vision-Based Bounty Bot)
 
 A fully autonomous agent that creates, monitors, and settles real-world bounties on the Base Network without human intervention. Built for the poidh ecosystem.
+
 🚀 Overview
 
 This bot operates as a "Trustless Requester" that pays humans to perform physical tasks. It leverages Multimodal AI (Vision) to verify real-world proofs and executes on-chain payouts via an EOA wallet.
